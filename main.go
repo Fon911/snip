@@ -38,7 +38,7 @@ func get(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "нет такой записи")
 		return
 	}
-	fmt.Fprintln(w, val)
+	http.Redirect(w, r, val, http.StatusMovedPermanently)
 }
 
 func main() {
