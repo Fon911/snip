@@ -1,4 +1,4 @@
-package go11snip
+package main
 
 import (
 	"context"
@@ -47,4 +47,13 @@ func GetLink(pool *pgxpool.Pool, code string) (string, error) {
 
 	}
 	return url, nil
+}
+
+func CountLinks(pool *pgxpool.Pool) (int, error) {
+	var count int
+	err := pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM links").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("не удалось посчитать запросы %w", err)
+	}
+	return count, nil
 }
