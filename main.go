@@ -6,19 +6,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var pool *pgxpool.Pool
-
-func Hello(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
-	if name == "" {
-		fmt.Fprintln(w, "Hello input name  /Hello?name=Lexa", name)
-		return
-	}
-	fmt.Fprintln(w, "Hello world ", name)
-}
 
 var KeyCount int
 
@@ -40,7 +32,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("code")
+	key := chi.URLParam(r, "code")
 	url, err := GetLink(pool, key)
 	if errors.Is(err, ErrNotFound) {
 		fmt.Fprintln(w, "нет такого кода")
@@ -54,6 +46,12 @@ func get(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	rt := chi.NewRouter()
+	rt.Get("/{code}", get)
+
+	rt.Post("/api/shorten", Shorten)
+
 	// 1. Связь с базой
 	p, err := NewPool("postgres://postgres:secret@localhost:5400/postgres")
 	if err != nil {
@@ -74,12 +72,9 @@ func main() {
 	fmt.Println("ссылок в базе:", KeyCount)
 
 	// 3. Ручки
-	http.HandleFunc("/Hello", Hello)
-	http.HandleFunc("/shorten", Shorten)
-	http.HandleFunc("/go", get)
 
 	// 4. Дежурство — ВСЕГДА последняя строка
-	err = http.ListenAndServe(":8000", nil)
+	err = http.ListenAndServe(":8000", rt)
 	if err != nil {
 		fmt.Println(err)
 	}
