@@ -40,12 +40,12 @@ func GetLink(pool *pgxpool.Pool, code string) (string, error) {
 	// Три исхода
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
-
 	}
 	if err != nil {
 		return "", fmt.Errorf("база сломалась: %w", err) // настоящий сбой
 
 	}
+
 	return url, nil
 }
 
@@ -56,4 +56,26 @@ func CountLinks(pool *pgxpool.Pool) (int, error) {
 		return 0, fmt.Errorf("не удалось посчитать запросы %w", err)
 	}
 	return count, nil
+}
+
+func IncrementClicks(pool *pgxpool.Pool, code string) error {
+	_, err := pool.Exec(context.Background(), "UPDATE links SET clicks = clicks + 1 WHERE code = $1", code)
+	if err != nil {
+		return fmt.Errorf("не смог посчитать лайк: %w", err)
+	}
+	return nil
+
+}
+
+func GetStats(pool *pgxpool.Pool, code string) (string, int, error) {
+	var url string
+	var clicks int
+	err := pool.QueryRow(context.Background(), "SELECT url, clicks FROM links WHERE code = $1", code).Scan(&url, &clicks)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, ErrNotFound
+	}
+	if err != nil {
+		return "", 0, fmt.Errorf("база сломалась: %w", err)
+	}
+	return url, clicks, nil
 }

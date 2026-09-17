@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,26 +15,51 @@ var pool *pgxpool.Pool
 
 var KeyCount int
 
+type ShortenRequest struct {
+	URL string `json:"url"`
+}
+
+type ShortenResponse struct {
+	Code string `json:"code"`
+}
+
+type StatResponse struct {
+	Code   string `json:"code"`
+	URL    string `json:"url"`
+	Clicks int    `json:"clicks"`
+}
+
 func Shorten(w http.ResponseWriter, r *http.Request) {
 
-	val := r.URL.Query().Get("url")
-	if val == "" {
-		fmt.Fprintln(w, "нужно так: /shorten?url=ссылка")
+	var req ShortenRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "кривой JSON")
+		return
+	}
+	if req.URL == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "нужно поле URL")
 		return
 	}
 	KeyCount++
 	key := strconv.Itoa(KeyCount)
-	err := SaveLink(pool, key, val)
+	err = SaveLink(pool, key, req.URL)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, "не смог сохранить")
 		return
 	}
-	fmt.Fprintln(w, "записал:", key)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(ShortenResponse{Code: key})
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
-	key := chi.URLParam(r, "code")
-	url, err := GetLink(pool, key)
+	code := chi.URLParam(r, "code")
+	url, err := GetLink(pool, code)
 	if errors.Is(err, ErrNotFound) {
 		fmt.Fprintln(w, "нет такого кода")
 		return
@@ -42,14 +68,36 @@ func get(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Ошибка сервера")
 		return
 	}
+	err = IncrementClicks(pool, code)
+	if err != nil {
+		fmt.Println(err)
+	}
 	http.Redirect(w, r, url, http.StatusFound)
+
+}
+
+func Stats(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+	url, clicks, err := GetStats(pool, code)
+	if errors.Is(err, ErrNotFound) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintln(w, "нет такоq ссылки")
+		return
+	}
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, "ошибка сервера")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(StatResponse{Code: code, URL: url, Clicks: clicks})
 }
 
 func main() {
 
 	rt := chi.NewRouter()
 	rt.Get("/{code}", get)
-
+	rt.Get("/api/stats/{code}", Stats)
 	rt.Post("/api/shorten", Shorten)
 
 	// 1. Связь с базой
