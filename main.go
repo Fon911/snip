@@ -5,15 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var pool *pgxpool.Pool
-
-var KeyCount int
 
 type ShortenRequest struct {
 	URL string `json:"url"`
@@ -44,9 +41,16 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "нужно поле URL")
 		return
 	}
-	KeyCount++
-	key := strconv.Itoa(KeyCount)
-	err = SaveLink(pool, key, req.URL)
+	var code string
+	for i := 0; i < 5; i++ {
+		code = GenerateCode(8)
+		err = SaveLink(pool, code, req.URL)
+		if errors.Is(err, ErrCodeTaken) {
+			continue
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, "не смог сохранить")
@@ -54,7 +58,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(ShortenResponse{Code: key})
+	json.NewEncoder(w).Encode(ShortenResponse{Code: code})
 }
 
 func get(w http.ResponseWriter, r *http.Request) {
@@ -109,15 +113,6 @@ func main() {
 	pool = p
 	defer pool.Close()
 	fmt.Println("база подключена")
-
-	// 2. Счётчик
-	CountLink, ErrCountLink := CountLinks(pool)
-	if ErrCountLink != nil {
-		fmt.Println(ErrCountLink)
-		return
-	}
-	KeyCount = CountLink
-	fmt.Println("ссылок в базе:", KeyCount)
 
 	// 3. Ручки
 

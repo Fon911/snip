@@ -6,10 +6,12 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrNotFound = errors.New("нет такого кода")
+var ErrCodeTaken = errors.New("код занят")
 
 func NewPool(dsn string) (*pgxpool.Pool, error) {
 
@@ -25,6 +27,11 @@ func SaveLink(pool *pgxpool.Pool, code string, url string) error {
 	_, err := pool.Exec(context.Background(),
 		"INSERT INTO links (code, url) VALUES ($1, $2)",
 		code, url)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return ErrCodeTaken
+	}
+
 	if err != nil {
 		return fmt.Errorf("вставка упала: %w", err)
 	}
