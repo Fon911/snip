@@ -1,9 +1,10 @@
-package main
+package storage
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"snap/example.com/db"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -24,9 +25,11 @@ func NewPool(dsn string) (*pgxpool.Pool, error) {
 }
 
 func SaveLink(pool *pgxpool.Pool, code string, url string) error {
-	_, err := pool.Exec(context.Background(),
-		"INSERT INTO links (code, url) VALUES ($1, $2)",
-		code, url)
+	q := db.New(pool)
+	err := q.SaveLink(context.Background(), db.SaveLinkParams{
+		Code: code,
+		Url:  url,
+	})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		return ErrCodeTaken
@@ -39,11 +42,9 @@ func SaveLink(pool *pgxpool.Pool, code string, url string) error {
 }
 
 func GetLink(pool *pgxpool.Pool, code string) (string, error) {
-	var url string
-	err := pool.QueryRow(context.Background(),
-		"SELECT url FROM links WHERE code = $1",
-		code).Scan(&url)
 
+	q := db.New(pool)
+	url, err := q.GetLink(context.Background(), code)
 	// Три исхода
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
@@ -56,33 +57,26 @@ func GetLink(pool *pgxpool.Pool, code string) (string, error) {
 	return url, nil
 }
 
-func CountLinks(pool *pgxpool.Pool) (int, error) {
-	var count int
-	err := pool.QueryRow(context.Background(), "SELECT COUNT(*) FROM links").Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("не удалось посчитать запросы %w", err)
-	}
-	return count, nil
-}
-
 func IncrementClicks(pool *pgxpool.Pool, code string) error {
-	_, err := pool.Exec(context.Background(), "UPDATE links SET clicks = clicks + 1 WHERE code = $1", code)
+	q := db.New(pool)
+	err := q.IncrementClicks(context.Background(), code)
 	if err != nil {
-		return fmt.Errorf("не смог посчитать лайк: %w", err)
+		return fmt.Errorf("не смог посчитать клик: %w", err)
 	}
 	return nil
 
 }
 
 func GetStats(pool *pgxpool.Pool, code string) (string, int, error) {
-	var url string
-	var clicks int
-	err := pool.QueryRow(context.Background(), "SELECT url, clicks FROM links WHERE code = $1", code).Scan(&url, &clicks)
+
+	q := db.New(pool)
+	row, err := q.GetStats(context.Background(), code)
+
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", 0, ErrNotFound
 	}
 	if err != nil {
 		return "", 0, fmt.Errorf("база сломалась: %w", err)
 	}
-	return url, clicks, nil
+	return row.Url, int(row.Clicks), nil
 }
