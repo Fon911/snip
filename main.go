@@ -24,7 +24,7 @@ func main() {
 	if dsn == "" {
 		dsn = "postgres://postgres:secret@localhost:5400/postgres"
 	}
-	p, err := storage.NewPool(dsn)
+	pool, err := storage.NewPool(dsn)
 
 	if err != nil {
 		fmt.Println(err)
