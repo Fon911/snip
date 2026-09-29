@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"snap/example.com/internal/handler"
 	"snap/example.com/internal/storage"
@@ -19,7 +20,11 @@ func main() {
 
 	// 1. Связь с базой
 
-	pool, err := storage.NewPool("postgres://postgres:secret@localhost:5400/postgres")
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = "postgres://postgres:secret@localhost:5400/postgres"
+	}
+	p, err := storage.NewPool(dsn)
 
 	if err != nil {
 		fmt.Println(err)
