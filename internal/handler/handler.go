@@ -44,7 +44,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code, err := service.Shorten(Pool, req.URL)
+	code, err := service.Shorten(r.Context(), Pool, req.URL)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, "не смог сохранить")
@@ -58,7 +58,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 func Get(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
 	url, err :=
-		service.Resolve(Pool, code)
+		service.Resolve(r.Context(), Pool, code)
 	if errors.Is(err, service.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintln(w, "нет такого кода")
@@ -76,7 +76,7 @@ func Get(w http.ResponseWriter, r *http.Request) {
 
 func Stats(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
-	url, clicks, err := service.Stats(Pool, code)
+	url, clicks, err := service.Stats(r.Context(), Pool, code)
 	if errors.Is(err, service.ErrNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintln(w, "нет такой ссылки")

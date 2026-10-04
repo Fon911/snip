@@ -14,9 +14,9 @@ import (
 var ErrNotFound = errors.New("нет такого кода")
 var ErrCodeTaken = errors.New("код занят")
 
-func NewPool(dsn string) (*pgxpool.Pool, error) {
+func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 
-	pool, err := pgxpool.New(context.Background(), dsn)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("не смог создать пул: %w", err)
 	}
@@ -24,9 +24,9 @@ func NewPool(dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func SaveLink(pool *pgxpool.Pool, code string, url string) error {
+func SaveLink(ctx context.Context, pool *pgxpool.Pool, code string, url string) error {
 	q := db.New(pool)
-	err := q.SaveLink(context.Background(), db.SaveLinkParams{
+	err := q.SaveLink(ctx, db.SaveLinkParams{
 		Code: code,
 		Url:  url,
 	})
@@ -41,10 +41,10 @@ func SaveLink(pool *pgxpool.Pool, code string, url string) error {
 	return nil
 }
 
-func GetLink(pool *pgxpool.Pool, code string) (string, error) {
+func GetLink(ctx context.Context, pool *pgxpool.Pool, code string) (string, error) {
 
 	q := db.New(pool)
-	url, err := q.GetLink(context.Background(), code)
+	url, err := q.GetLink(ctx, code)
 	// Три исхода
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
@@ -57,9 +57,9 @@ func GetLink(pool *pgxpool.Pool, code string) (string, error) {
 	return url, nil
 }
 
-func IncrementClicks(pool *pgxpool.Pool, code string) error {
+func IncrementClicks(ctx context.Context, pool *pgxpool.Pool, code string) error {
 	q := db.New(pool)
-	err := q.IncrementClicks(context.Background(), code)
+	err := q.IncrementClicks(ctx, code)
 	if err != nil {
 		return fmt.Errorf("не смог посчитать клик: %w", err)
 	}
@@ -67,10 +67,10 @@ func IncrementClicks(pool *pgxpool.Pool, code string) error {
 
 }
 
-func GetStats(pool *pgxpool.Pool, code string) (string, int, error) {
+func GetStats(ctx context.Context, pool *pgxpool.Pool, code string) (string, int, error) {
 
 	q := db.New(pool)
-	row, err := q.GetStats(context.Background(), code)
+	row, err := q.GetStats(ctx, code)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", 0, ErrNotFound

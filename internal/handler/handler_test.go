@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -63,7 +64,7 @@ func setupPool(t *testing.T) {
 		return
 	}
 
-	pool, err := storage.NewPool("postgres://postgres:secret@localhost:5400/postgres")
+	pool, err := storage.NewPool(context.Background(), "postgres://postgres:secret@localhost:5400/postgres")
 	if err != nil {
 		t.Fatalf("база недоступна (docker start snipdb?): %v", err)
 	}
@@ -76,7 +77,7 @@ func TestGet(t *testing.T) {
 	rt := chi.NewRouter()
 	rt.Get("/{code}", Get)
 	t.Run("Редирект", func(t *testing.T) {
-		link, err := service.Shorten(Pool, "https://ya.ru")
+		link, err := service.Shorten(context.Background(), Pool, "https://ya.ru")
 		if err != nil {
 			t.Fatalf("Ошибка Shorten: %v", err)
 		}
@@ -114,7 +115,7 @@ func TestStats(t *testing.T) {
 	rt := chi.NewRouter()
 	rt.Get("/api/stats/{code}", Stats)
 	t.Run("Статистика", func(t *testing.T) {
-		link, err := service.Shorten(Pool, "https://ya.ru")
+		link, err := service.Shorten(context.Background(), Pool, "https://ya.ru")
 		if err != nil {
 			t.Fatalf("Ошибка Shorten: %v", err)
 		}

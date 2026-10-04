@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ func main() {
 	if dsn == "" {
 		dsn = "postgres://postgres:secret@localhost:5400/postgres"
 	}
-	pool, err := storage.NewPool(dsn)
+	pool, err := storage.NewPool(context.Background(), dsn)
 
 	if err != nil {
 		fmt.Println(err)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -23,12 +24,12 @@ func generateCode(n int) string {
 	return string(result)
 }
 
-func Shorten(pool *pgxpool.Pool, url string) (string, error) {
+func Shorten(ctx context.Context, pool *pgxpool.Pool, url string) (string, error) {
 	var code string
 	var err error
 	for i := 0; i < 5; i++ {
 		code = generateCode(8)
-		err = storage.SaveLink(pool, code, url)
+		err = storage.SaveLink(ctx, pool, code, url)
 		if errors.Is(err, storage.ErrCodeTaken) {
 			continue
 		} else {
@@ -42,16 +43,16 @@ func Shorten(pool *pgxpool.Pool, url string) (string, error) {
 	return code, nil
 }
 
-func Stats(pool *pgxpool.Pool, code string) (string, int, error) {
-	return storage.GetStats(pool, code)
+func Stats(ctx context.Context, pool *pgxpool.Pool, code string) (string, int, error) {
+	return storage.GetStats(ctx, pool, code)
 }
 
-func Resolve(pool *pgxpool.Pool, code string) (string, error) {
-	url, err := storage.GetLink(pool, code)
+func Resolve(ctx context.Context, pool *pgxpool.Pool, code string) (string, error) {
+	url, err := storage.GetLink(ctx, pool, code)
 	if err != nil {
 		return url, err
 	}
-	err = storage.IncrementClicks(pool, code)
+	err = storage.IncrementClicks(ctx, pool, code)
 	if err != nil {
 		fmt.Println(err)
 	}
